@@ -1,0 +1,30 @@
+appId: com.tikoeats.print
+productName: Tiko Impresión
+copyright: Copyright © Intelligsofts Systems SRL
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+  - build/icon.png
+artifactName: Tiko-Impresion-${version}-${os}-${arch}.${ext}
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+nsis:
+  oneClick: true
+  perMachine: false
+  runAfterFinish: true
+  createDesktopShortcut: true
+  shortcutName: Tiko Impresión
+mac:
+  target:
+    - target: dmg
+      arch: [universal]
+  category: public.app-category.business
+  icon: build/icon.png
+dmg:
+  title: Tiko Impresión

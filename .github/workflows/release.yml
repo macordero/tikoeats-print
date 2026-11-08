@@ -1,0 +1,71 @@
+# Builds the installers and publishes them where the Tiko panel's
+# "Descargar" buttons point.
+#
+# Run it by pushing a version tag:   git tag v1.0.0 && git push --tags
+# (or by hand from the Actions tab: "Run workflow").
+#
+# Needs, in GitHub › Settings › Secrets and variables › Actions:
+#   Variables: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY   (public values)
+#   Secrets:   SUPABASE_SERVICE_ROLE_KEY                   (only to upload the
+#              installers to the public "apps" bucket; never shipped in the app)
+
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            script: dist:win
+            file: exe
+            stable: Tiko-Impresion-Setup.exe
+          - os: macos-latest
+            script: dist:mac
+            file: dmg
+            stable: Tiko-Impresion.dmg
+    runs-on: ${{ matrix.os }}
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+      # No code signing yet (see README): don't let electron-builder look for it.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      HAS_STORAGE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run ${{ matrix.script }}
+
+      - name: Keep the installer as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.file }}
+          path: dist/*.${{ matrix.file }}
+
+      - name: Publish to Supabase Storage (apps/print/)
+        if: env.HAS_STORAGE_KEY == 'true'
+        shell: bash
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          f=$(ls dist/*.${{ matrix.file }} | head -1)
+          version=$(node -p "require('./package.json').version")
+          for name in "${{ matrix.stable }}" "v${version}/$(basename "$f")"; do
+            curl --fail -sS -X POST \
+              -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+              -H "x-upsert: true" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"$f" \
+              "$VITE_SUPABASE_URL/storage/v1/object/apps/print/$name"
+          done
+          echo "Published $f"
