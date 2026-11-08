@@ -4,6 +4,7 @@
 
 import { buildTicket } from '@/lib/printing/ticketBuilder';
 import { FEED_TAIL_MM, renderTicketHtml } from '@/lib/printing/ticketHtml';
+import { thermalizeImages } from '@/lib/printing/thermalImage';
 import { toBranch, toOrder } from '@/lib/data/mappers';
 import type { Job, Poll } from './api';
 
@@ -24,8 +25,13 @@ export async function jobHtml(job: Job, bundle: NonNullable<Poll['bundle']>): Pr
   const branch = toBranch(bundle.branch);
   const qr = job.kind === 'customer' ? await storeQr(bundle.account.slug) : undefined;
   const lines = buildTicket(job.kind, order, branch, qr);
-  // Same paper tail as the panel: the receipt needs ~3cm more before the cut.
-  return renderTicketHtml(lines, job.kind === 'customer' ? FEED_TAIL_MM + 30 : FEED_TAIL_MM);
+  // Exactly the panel's driver path (printerService → printViaBrowser):
+  // logo/QR turned black-and-white at print size so the driver doesn't blur
+  // them, and the receipt's extra 3cm of paper before the cut.
+  return renderTicketHtml(
+    await thermalizeImages(lines),
+    job.kind === 'customer' ? FEED_TAIL_MM + 30 : FEED_TAIL_MM,
+  );
 }
 
 export function testPageHtml(bundle: Pick<NonNullable<Poll['bundle']>, 'account'> | null, by?: string | null, printerName?: string): string {

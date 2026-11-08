@@ -16,7 +16,14 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   try {
     res = await fetch(`${URL_}/rest/v1/rpc/${fn}`, {
       method: 'POST',
-      headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+      headers: {
+        apikey: KEY,
+        // The legacy anon key is a JWT and also goes as the bearer token; the
+        // new publishable key (sb_publishable_…) isn't a JWT and must only go
+        // as apikey, or the API rejects it.
+        ...(KEY.startsWith('eyJ') ? { Authorization: `Bearer ${KEY}` } : {}),
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(args),
     });
   } catch {
