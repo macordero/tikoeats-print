@@ -60,12 +60,20 @@ jobs:
         run: |
           f=$(ls dist/*.${{ matrix.file }} | head -1)
           version=$(node -p "require('./package.json').version")
+          size=$(wc -c < "$f" | tr -d ' ')
+          echo "Installer: $f ($((size / 1024 / 1024)) MB)"
+          # New Supabase secret keys (sb_secret_…) go only as apikey; the
+          # legacy service_role key is a JWT and also goes as the bearer.
+          auth=(-H "apikey: $SUPABASE_SERVICE_ROLE_KEY")
+          case "$SUPABASE_SERVICE_ROLE_KEY" in eyJ*) auth+=(-H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY");; esac
           for name in "${{ matrix.stable }}" "v${version}/$(basename "$f")"; do
-            curl --fail -sS -X POST \
-              -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            code=$(curl -sS -o resp.txt -w '%{http_code}' -X POST "${auth[@]}" \
               -H "x-upsert: true" \
               -H "Content-Type: application/octet-stream" \
               --data-binary @"$f" \
-              "$VITE_SUPABASE_URL/storage/v1/object/apps/print/$name"
+              "$VITE_SUPABASE_URL/storage/v1/object/apps/print/$name")
+            echo "apps/print/$name -> HTTP $code"
+            cat resp.txt; echo
+            if [ "$code" -ge 300 ]; then exit 1; fi
           done
           echo "Published $f"
