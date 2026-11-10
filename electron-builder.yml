@@ -1,5 +1,8 @@
 appId: com.tikoeats.print
-productName: Tiko Impresión
+# No accents in the app/executable name: Electron crashes at launch on macOS
+# when its own path has non-ASCII characters ("Tiko Impresión.app"). What
+# people see — window title, tray, shortcuts, installer title — keeps the tilde.
+productName: Tiko Impresion
 copyright: Copyright © Intelligsofts Systems SRL
 directories:
   output: dist
