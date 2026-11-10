@@ -1,7 +1,7 @@
 {
   "name": "tikoeats-print",
   "productName": "Tiko Impresion",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Tiko Impresión: imprime automáticamente comandas y tiquetes de los pedidos de Tiko.",
   "author": "Intelligsofts Systems SRL",
   "private": true,
