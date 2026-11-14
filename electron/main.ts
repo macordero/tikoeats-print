@@ -61,21 +61,36 @@ function setToken(token: string | null) {
 // ---- printing -------------------------------------------------------------------
 
 /**
- * Prints one ticket page (complete HTML, 80mm wide) on a named printer,
- * with no dialog. Uses the printer's own driver — the same route the
- * panel's "browser" mode ends up on, minus the dialog.
+ * Prints one ticket (complete HTML, 72mm content) on a named printer, with
+ * no dialog, through the printer's own driver.
+ *
+ * The page size MUST be set: left to the driver, Chromium lays the ticket
+ * out on its default sheet (A4/Letter), centres the 72mm column on it and
+ * the 80mm roll only catches its left edge — a couple of dashes and blank
+ * paper. So the page is exactly 80mm wide and as tall as the ticket.
  */
+const PAPER_WIDTH_MM = 80;
+const PX_TO_MICRONS = 25400 / 96; // 1 CSS px = 1/96 in
+
 async function printHtml(deviceName: string, html: string, copies: number): Promise<void> {
   const pw = new BrowserWindow({
     show: false,
-    width: 400,
+    // Lay it out at the paper's width so the measured height is the real one.
+    width: Math.round((PAPER_WIDTH_MM * 1000) / PX_TO_MICRONS),
     height: 800,
-    webPreferences: { sandbox: true, javascript: false },
+    webPreferences: { sandbox: true, javascript: true },
   });
   try {
     await pw.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
-    // Let images (logo, QR) decode before the page is handed to the driver.
-    await new Promise((r) => setTimeout(r, 250));
+    // Let images (logo, QR) decode before measuring and printing.
+    await pw.webContents.executeJavaScript(
+      'Promise.all(Array.from(document.images).map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })))',
+    );
+    const heightPx: number = await pw.webContents.executeJavaScript(
+      'Math.ceil(Math.max(document.documentElement.scrollHeight, document.body.scrollHeight))',
+    );
+    const heightMicrons = Math.max(50_000, Math.ceil(heightPx * PX_TO_MICRONS) + 2_000);
+
     await new Promise<void>((resolve, reject) => {
       pw.webContents.print(
         {
@@ -83,7 +98,9 @@ async function printHtml(deviceName: string, html: string, copies: number): Prom
           deviceName,
           copies: Math.max(1, Math.min(5, copies || 1)),
           printBackground: true,
+          landscape: false,
           margins: { marginType: 'none' },
+          pageSize: { width: PAPER_WIDTH_MM * 1000, height: heightMicrons },
         },
         (ok, reason) => (ok ? resolve() : reject(new Error(reason || 'print_failed'))),
       );

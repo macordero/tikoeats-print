@@ -38,7 +38,8 @@ export function testPageHtml(bundle: Pick<NonNullable<Poll['bundle']>, 'account'
   const now = new Date().toLocaleString('es-CR');
   const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-    @page { size: 80mm auto; margin: 0; }
+    @page { size: 80mm 120mm; margin: 0; }
+    html, body { margin: 0; }
     body { width: 72mm; margin: 0 auto; padding: 4mm 0 30mm; font: 13px/1.4 monospace; color: #000; }
     h1 { font-size: 18px; text-align: center; margin: 0 0 6px; }
     p { margin: 2px 0; text-align: center; }
