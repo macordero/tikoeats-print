@@ -66,10 +66,16 @@ function setToken(token: string | null) {
  *
  * The page size MUST be set: left to the driver, Chromium lays the ticket
  * out on its default sheet (A4/Letter), centres the 72mm column on it and
- * the 80mm roll only catches its left edge — a couple of dashes and blank
- * paper. So the page is exactly 80mm wide and as tall as the ticket.
+ * the roll only catches its left edge.
+ *
+ * And it must be the PRINTABLE width, not the roll's: an 80mm thermal
+ * printer only prints the middle 72mm (576 dots) and the driver already
+ * starts the page at that printable edge. An 80mm page put the ticket's own
+ * 4mm side margin on top of the printer's, so everything came out shifted
+ * right with the end of each line cut off. 72mm page = ticket edge to edge
+ * of what the head can print, centred on the paper.
  */
-const PAPER_WIDTH_MM = 80;
+const PAPER_WIDTH_MM = 72;
 const PX_TO_MICRONS = 25400 / 96; // 1 CSS px = 1/96 in
 
 async function printHtml(deviceName: string, html: string, copies: number): Promise<void> {
